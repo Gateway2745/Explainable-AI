@@ -2,6 +2,9 @@ import keras
 from keras.metrics import (
         AUC
 )
+import net
+from deformations import elastically_deform_image_2d
+
 class Generator(keras.utils.Sequence):
     def __init__(self, x_set, y_set, batch_size):
         self.x, self.y = x_set, y_set
@@ -19,8 +22,11 @@ class Generator(keras.utils.Sequence):
 
 
 def train_net(training, size=512, epochs=400, batch_size=4, logging_interval=5, run_name=None):
-    
+    model = net.generate_network()
+    print(model.summary())
+
     x_train,y_train = training
+
     train_gen = Generator(x_train, y_train, 2)
 
     model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy', AUC()])
