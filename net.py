@@ -1,10 +1,13 @@
+import keras
 from keras.layers import (
     Activation,
+    Add,
     BatchNormalization,
     Conv2D,
     Dense,
     GlobalAveragePooling2D,
     Input,
+    Lambda,
     MaxPooling2D,
 )
 
@@ -43,7 +46,8 @@ def generate_convolutional_block(inp, filters, length=2, pool=True, stride=1):
     # ReLU
     shortcut = Activation('relu')(shortcut)
     
-    output = (output + shortcut) / 2.
+    output = Add()([output, shortcut])
+    output = Lambda(lambda x : x/2.0)(output)
     
     if pool:      
         output = MaxPooling2D(
@@ -53,52 +57,29 @@ def generate_convolutional_block(inp, filters, length=2, pool=True, stride=1):
     
     return output
 
-    def generate_network(size=512, width=1):
-        inp = Input(shape = (size,size,1), name='input')
-        
-        output = generate_convolutional_block(inp, filters=16*width, stride=2)
+def generate_network(size=512, width=1):
+    inp = Input(shape = (size,size,1), name='input')
 
-        # 3 "normal" convolutional blocks
-        output = generate_convolutional_block(output, filters=32*width)
-        output = generate_convolutional_block(output, filters=48*width)
-        output = generate_convolutional_block(output, filters=64*width)
+    output = generate_convolutional_block(inp, filters=16*width, stride=2)
 
-        # last convolutional block without pooling
-        output = generate_convolutional_block(output, filters=80*width, pool=False)
+    # 3 "normal" convolutional blocks
+    output = generate_convolutional_block(output, filters=32*width)
+    output = generate_convolutional_block(output, filters=48*width)
+    output = generate_convolutional_block(output, filters=64*width)
 
-        # Global average pooling
-        output = GlobalAveragePooling2D(data_format='channels_last')(output)
-        
-        output = Dense(
-            units=2, # 2 outputs
-            kernel_initializer='he_normal',
-            name='logits'
-        )(output)
+    # last convolutional block without pooling
+    output = generate_convolutional_block(output, filters=80*width, pool=False)
 
-        probabilities = Activation('softmax', name='probabilities')(output)
+    # Global average pooling
+    output = GlobalAveragePooling2D(data_format='channels_last')(output)
 
-        classes = keras.argmax(logits, axis=1, name='classes')
+    logits = Dense(
+        units=2, # 2 outputs
+        kernel_initializer='he_normal',
+        name='logits'
+    )(output)
 
-        return inp, labels, {
-        'logits': logits,
-        'probabilities': probabilities,
-        'classes': classes,
-    }
+    probabilities = Activation('softmax', name='probabilities')(logits)
+    
+    return keras.models.Model(inputs=inp, outputs=probabilities)
 
-def generate_functions(inp, labels, output):
-    """Generates functions like error, accuracy and train, 
-    that are used for training and testing the network"""
-
-    #error = tf.losses.sparse_softmax_cross_entropy(labels, output['logits'])
-    error = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=output['logits'])
-
-    #optimizer = tf.train.AdamOptimizer(learning_rate=8e-5)
-    optimizer = keras.optimizers.Adam(decay=8e-5)
-    train = optimizer.minimize(error)
-
-    metrics = {
-        'accuracy': tf.metrics.accuracy(labels, output['classes']),
-        'AUC': tf.metrics.auc(labels, output['probabilities'][:,1]),
-    }
-
-    return error, train, metrics
