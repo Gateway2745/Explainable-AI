@@ -1,38 +1,25 @@
-import keras
-from keras.metrics import (
-        AUC
-)
+from keras.metrics import AUC
 import net
-from deformations import elastically_deform_image_2d
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-class Generator(keras.utils.Sequence):
-    def __init__(self, x_set, y_set, batch_size):
-        self.x, self.y = x_set, y_set
-        self.batch_size = batch_size
+from preprocessing.generator import Generator
         
-    def __len__(self):
-        return int(np.ceil(len(self.x) / float(self.batch_size)))
+csv_file  = '~/CheXpert-v1.0-small/train.csv'
 
-    def __getitem__(self, idx):
-        batch_x = self.x[idx * self.batch_size : (idx + 1) * self.batch_size]
-        batch_y = self.y[idx * self.batch_size :(idx + 1) * self.batch_size]
-        
-        return batch_x,batch_y
-        
+def train_net(size=512, epochs=20, batch_size=4, logging_interval=5, run_name=None):
 
+    train_gen = Generator(csv_file, batch_size=batch_size)
 
-def train_net(training, size=512, epochs=400, batch_size=4, logging_interval=5, run_name=None):
     model = net.generate_network()
+
     print(model.summary())
-
-    x_train,y_train = training
-
-    train_gen = Generator(x_train, y_train, 2)
-
-    model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy', AUC()])
+    
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['binary_accuracy', AUC()])
     
     model.fit_generator(
         train_gen,
-        epochs=5,
+        epochs=epochs,
         )
 
+train_net()
