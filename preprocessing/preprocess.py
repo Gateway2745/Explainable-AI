@@ -9,12 +9,16 @@ ATTR_NAMES = ['No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly',
 
 DROP_COLS = ["Sex", "Age", "Frontal/Lateral", "AP/PA", "Fracture", "Support Devices"]
     
-def preprocess_training_data(base_dir, data_filter = None, concat_train_val = False):
+PROCESSED_DIR = 'processed_training_data'
     
-    train_file = os.path.join(base_dir, 'processed_train.csv')
-    valid_file = os.path.join(base_dir, 'processed_valid.csv')
+def preprocess_training_data(base_dir, data_filter = None, concat_train_val = False):
+   
+    train_file = os.path.join(base_dir, PROCESSED_DIR, 'processed_train.csv')
+    valid_file = os.path.join(base_dir, PROCESSED_DIR, 'processed_valid.csv')
     
     if not (os.path.exists(train_file) and os.path.exists(valid_file)):
+        os.makedirs(os.path.join(base_dir, PROCESSED_DIR), exist_ok=True)
+        
         # load data and preprocess training data
         valid_df = pd.read_csv(os.path.join(base_dir, 'valid.csv'), keep_default_na=True)
         train_df = load_training_data(os.path.join(base_dir, 'train.csv'), data_filter, valid_df, concat_train_val)
@@ -42,7 +46,7 @@ def load_training_data(csv_path, data_filter, valid_df, concat_train_val):
         for k, v in data_filter.items():
             train_df = train_df[train_df[k]==v]
 
-        with open(os.path.join(os.path.dirname(csv_path), 'processed_training_data_filters.json'), 'w') as f:
+        with open(os.path.join(os.path.dirname(csv_path), PROCESSED_DIR, 'processed_training_data_filters.json'), 'w') as f:
             json.dump(data_filter, f)
        
     # 4. Delete irrelevant columns 

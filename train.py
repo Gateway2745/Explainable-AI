@@ -1,37 +1,73 @@
-# Libs
+from tensorflow.keras.metrics import AUC
+from tensorflow.keras.callbacks import Callback,TensorBoard
+import net
+import argparse
 import os
-import sys
+from preprocessing.generator import Generator
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# Own modules
-import preprocess
-import prepare_input
-import train_variants
-import progress
+class CheckpointSaver(Callback):
+    def __init__(self, checkpoint_dir):
+        self.checkpoint_dir = checkpoint_dir
+    
+    def on_epoch_end(self, epoch, logs={}):
+        self.model.save(os.path.join(self.checkpoint_dir, "model_{}.h5").format(epoch+1))
+                
+def create_callbacks(args):
+    callbacks = []
 
-# Constants
-SIZE = 512
+    if args['tensorboard_dir']:
+        os.makedirs(args['tensorboard_dir'], exist_ok=True)
+        tensorboard_callback = TensorBoard(
+            log_dir                = args['tensorboard_dir'],
+            histogram_freq         = 0,
+            batch_size             = args['batch_size'],
+            write_graph            = True,
+            write_grads            = False,
+            write_images           = False,
+            embeddings_freq        = 0,
+            profile_batch          = 0,
+            embeddings_layer_names = None,
+            embeddings_metadata    = None
+        )       
+        callbacks.append(tensorboard_callback)
+        
+        
+    if args['checkpoint_dir']:
+        os.makedirs(args['checkpoint_dir'])
+        checkpoint = CheckpointSaver(args['checkpoint_dir'])
+        
+        callbacks.append(checkpoint)
+              
+    return callbacks
 
-# Helper functions
-def relPath(dir):
-    "Returns path of directory relative to the executable"
-    return os.path.join(os.path.dirname(__file__), dir)
+def train_net():
+    
+    ap = argparse.ArgumentParser()
 
-# Crop and resize images
-# This expects the images to be saved in the data folder
-# Extract 1/4 more for cropping augmentation
-print('Preprocessing...')
-preprocess.preprocess(relPath('data'), relPath('preprocessed'), size=int(SIZE*1.1))
+    ap.add_argument('--batch-size', help='batch size', default=2)
+    ap.add_argument('--tensorboard-dir', help='Log directory for Tensorboard output', default=False)
+    ap.add_argument('--checkpoint-dir', help='directory to save checkpoints',default=False)
+    ap.add_argument('--epochs', help='number of epochs to train the model', default=10)
+    ap.add_argument('--csv', help='path to chexpert train.csv', required=True)
+    
+    args = vars(ap.parse_args())
+    
+    train_gen = Generator(args['csv'], batch_size=args['batch_size'])
+    
+    callbacks = create_callbacks(args)
 
-# Prepare input: convert to float with unit variance and zero mean,
-# extract labels and save everything as a big numpy array to be used for training
-print('Preparing input...')
-prepare_input.prepare(relPath('preprocessed'), relPath('input'))
+    model = net.generate_network()
 
-# print command to start tensorboard
-progress.start_tensorboard()
+    print(model.summary())
+    
+    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['binary_accuracy', AUC()])
+    
+    model.fit_generator(
+        train_gen,
+        epochs=args['epochs'],
+        callbacks=callbacks
+        )
 
-# Train network
-if '--cross-validation' in sys.argv:
-    train_variants.train_cross_validation(relPath('input'), sets=3, size=SIZE)
-else:
-    train_variants.train_single(relPath('input'), size=SIZE)
+if __name__ == "__main__":
+    train_net()

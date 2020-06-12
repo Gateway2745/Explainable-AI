@@ -8,7 +8,7 @@ import math
 import random
 import csv
 from collections import OrderedDict
-from preprocessing.preprocess import preprocess_training_data, DROP_COLS
+from preprocessing.preprocess import preprocess_training_data, DROP_COLS, PROCESSED_DIR
 
 #before_lf = []
 #after_lf = []
@@ -65,7 +65,7 @@ class Generator(keras.utils.Sequence):
 
         preprocess_training_data(self.base_dir, data_filter = {'Frontal/Lateral':'Frontal'})
          
-        train_csv = os.path.join(self.base_dir, 'processed_train.csv')
+        train_csv = os.path.join(self.base_dir, PROCESSED_DIR, 'processed_train.csv')
         #valid_csv = os.path.join('base_dir', 'processed_valid.csv')
 
         try:
@@ -126,6 +126,10 @@ class Generator(keras.utils.Sequence):
         """ resize images 
         """
         
+        #sometimes image width or height becomes 0 after lung region extraction
+#         if 0 in img.shape:
+#             return None
+        
         (rows, cols, _) = img.shape
         smallest_side = min(rows, cols)
         scale = min_side / smallest_side
@@ -134,6 +138,9 @@ class Generator(keras.utils.Sequence):
             scale = max_side / largest_side
 
         img = cv2.resize(img, None, fx=scale, fy=scale)
+          
+#         print('image shape is', img.shape)
+#         print('smallest and largest side is '+ str(smallest_side) + " " + str(largest_side))
         
         return img
     
@@ -144,12 +151,15 @@ class Generator(keras.utils.Sequence):
         
         image = image.astype(np.float32)
             
-        # TODO CALCULATE MEAN AND STD OF CHEXPERT DATA
+        #TODO CALCULATE MEAN AND STD OF CHEXPERT DATA
         image /= 127.5
         image -= 1.
 
         # resize image
         image = self.resize_image(image, self.image_min_side, self.image_max_side)
+
+#         if image is None:
+#             return None
 
         # convert to keras floatx
         image = keras.backend.cast_to_floatx(image)
@@ -162,6 +172,11 @@ class Generator(keras.utils.Sequence):
         
         for index in range(len(image_group)):
             image_group[index] = self.preprocess_group_entry(image_group[index])
+#             img = self.preprocess_group_entry(image_group[index])
+# #             if img is not None:
+#             new_group.append(img)
+#             targets.append(self.load_annotations(index))
+#         return new_group,targets
     
         return image_group
     
