@@ -1,8 +1,8 @@
 # Explaining Deep Learning algorithms used for classification of CXR images
 
 ### Requirements
-Tensorflow >= 2.0<br/>
-lungs-finder ==1.0.0
+Tensorflow==1.5<br/>
+lungs-finder==1.0.0
 
 ###  Training on cheXpert  dataset
 

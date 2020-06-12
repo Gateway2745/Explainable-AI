@@ -1,5 +1,5 @@
-from tensorflow.keras import Model
-from tensorflow.keras.layers import (
+from keras import Model
+from keras.layers import (
     Activation,
     Add,
     BatchNormalization,

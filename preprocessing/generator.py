@@ -1,4 +1,4 @@
-import tensorflow.keras as keras
+import keras
 import numpy as np
 import cv2
 import lungs_finder as lf
@@ -9,9 +9,6 @@ import random
 import csv
 from collections import OrderedDict
 from preprocessing.preprocess import preprocess_training_data, DROP_COLS, PROCESSED_DIR
-
-#before_lf = []
-#after_lf = []
 
 def _read_annotations(csv_reader):
     """ Parse the annotations file given by csv_reader.
@@ -30,8 +27,6 @@ def _read_annotations(csv_reader):
 
 def read_image_bgr(path):
     """ Read an image in BGR format.
-    Args
-        path: Path to the image.
     """
     image = np.ascontiguousarray(Image.open(path).convert('RGB'))
     
@@ -63,6 +58,7 @@ class Generator(keras.utils.Sequence):
         if self.base_dir is None:
             self.base_dir = os.path.dirname(csv_file)
 
+        #ignore lateral cxr images 
         preprocess_training_data(self.base_dir, data_filter = {'Frontal/Lateral':'Frontal'})
          
         train_csv = os.path.join(self.base_dir, PROCESSED_DIR, 'processed_train.csv')
@@ -104,15 +100,12 @@ class Generator(keras.utils.Sequence):
         """  use lung-finder to extract lung region
         """
         new_group = []
-        #before_lf.append(image_group[0])
         for img in image_group:
             found_lungs = lf.get_lungs(img)
             if found_lungs is not None and 0 not in found_lungs.shape:
                 new_group.append(found_lungs)
             else:
                 new_group.append(img)
-                
-        #after_lf.append(image_group[0])
         
         return new_group
     
@@ -126,10 +119,6 @@ class Generator(keras.utils.Sequence):
         """ resize images 
         """
         
-        #sometimes image width or height becomes 0 after lung region extraction
-#         if 0 in img.shape:
-#             return None
-        
         (rows, cols, _) = img.shape
         smallest_side = min(rows, cols)
         scale = min_side / smallest_side
@@ -138,17 +127,13 @@ class Generator(keras.utils.Sequence):
             scale = max_side / largest_side
 
         img = cv2.resize(img, None, fx=scale, fy=scale)
-          
-#         print('image shape is', img.shape)
-#         print('smallest and largest side is '+ str(smallest_side) + " " + str(largest_side))
         
         return img
     
     def preprocess_group_entry(self, image):
         """ Preprocess image and its annotations.
         """
-        # preprocess the image
-        
+
         image = image.astype(np.float32)
             
         #TODO CALCULATE MEAN AND STD OF CHEXPERT DATA
@@ -158,10 +143,6 @@ class Generator(keras.utils.Sequence):
         # resize image
         image = self.resize_image(image, self.image_min_side, self.image_max_side)
 
-#         if image is None:
-#             return None
-
-        # convert to keras floatx
         image = keras.backend.cast_to_floatx(image)
 
         return image
@@ -172,11 +153,6 @@ class Generator(keras.utils.Sequence):
         
         for index in range(len(image_group)):
             image_group[index] = self.preprocess_group_entry(image_group[index])
-#             img = self.preprocess_group_entry(image_group[index])
-# #             if img is not None:
-#             new_group.append(img)
-#             targets.append(self.load_annotations(index))
-#         return new_group,targets
     
         return image_group
     
@@ -237,6 +213,7 @@ class Generator(keras.utils.Sequence):
         # compute network inputs
         inputs = self.compute_inputs(image_group)
         
+        #compute targets 
         targets = np.array(self.load_annotations_group(group))
         
         return inputs,targets
