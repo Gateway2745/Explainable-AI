@@ -1,5 +1,5 @@
-import keras
-from keras.layers import (
+from tensorflow.keras import Model
+from tensorflow.keras.layers import (
     Activation,
     Add,
     BatchNormalization,
@@ -81,5 +81,5 @@ def generate_network(size=512, width=1):
 
     probabilities = Activation('sigmoid', name='probabilities')(logits)
     
-    return keras.models.Model(inputs=inp, outputs=probabilities)
-
+    return Model(inputs=inp, outputs=probabilities)
+    

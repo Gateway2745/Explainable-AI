@@ -1,4 +1,4 @@
-import keras
+import tensorflow.keras as keras
 import numpy as np
 import cv2
 import lungs_finder as lf
@@ -25,6 +25,7 @@ def _read_annotations(csv_reader):
         img_path = row[1]
         attrs = [int(float(x)) for x in row[2:]]
         result[img_path] = {'id':patient_id, 'attrs':attrs}
+        
     return result
 
 def read_image_bgr(path):
@@ -33,6 +34,7 @@ def read_image_bgr(path):
         path: Path to the image.
     """
     image = np.ascontiguousarray(Image.open(path).convert('RGB'))
+    
     return image[:, :, ::-1]
 
 class Generator(keras.utils.Sequence):
@@ -85,27 +87,27 @@ class Generator(keras.utils.Sequence):
         """ Size of the dataset.
         """
         return len(self.image_names)
-    
+          
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
-        # determine the order of the images
+
         order = list(range(self.size()))
             
         random.shuffle(order)
 
-        # divide into groups, one group = one batch
-        self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
+        self.groups = [[order[x % len(order)] for x in range(i, i
+                       + self.batch_size)] for i in range(0, len(order),
+                       self.batch_size)]
     
     def extract_lungs(self, image_group):
-        """
-            use lung-finder to extract lung region
+        """  use lung-finder to extract lung region
         """
         new_group = []
         #before_lf.append(image_group[0])
         for img in image_group:
             found_lungs = lf.get_lungs(img)
-            if(found_lungs is not None):
+            if found_lungs is not None and 0 not in found_lungs.shape:
                 new_group.append(found_lungs)
             else:
                 new_group.append(img)
@@ -115,14 +117,14 @@ class Generator(keras.utils.Sequence):
         return new_group
     
     def on_epoch_end(self):
-        if self.shuffle_groups:
-            random.shuffle(self.groups)
-            
-        
+        random.shuffle(self.groups)
+                  
     def __len__(self):
         return len(self.groups)
     
     def resize_image(self, img, min_side=512, max_side=800):
+        """ resize images 
+        """
         
         (rows, cols, _) = img.shape
         smallest_side = min(rows, cols)
@@ -130,9 +132,9 @@ class Generator(keras.utils.Sequence):
         largest_side = max(rows, cols)
         if largest_side * scale > max_side:
             scale = max_side / largest_side
-        
+
         img = cv2.resize(img, None, fx=scale, fy=scale)
-    
+        
         return img
     
     def preprocess_group_entry(self, image):
@@ -142,7 +144,7 @@ class Generator(keras.utils.Sequence):
         
         image = image.astype(np.float32)
             
-        #TODO CALCULATE MEAN AND STD OF CHEXPERT DATA
+        # TODO CALCULATE MEAN AND STD OF CHEXPERT DATA
         image /= 127.5
         image -= 1.
 
@@ -159,26 +161,24 @@ class Generator(keras.utils.Sequence):
         """
         
         for index in range(len(image_group)):
-            # preprocess a single group entry
             image_group[index] = self.preprocess_group_entry(image_group[index])
-
+    
         return image_group
-    
-    def load_annotations_group(self, group):
-        """ Load annotations for all images in group.
-        """
-        annotations_group = [self.load_annotations(image_index) for image_index in group]
-    
-        return annotations_group
-
     
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
         """
         path        = self.image_names[image_index]
         annotations = self.image_data[path]['attrs']
+        
         return annotations
 
+    def load_annotations_group(self, group):
+        """ Load annotations for all images in group.
+        """
+        annotations_group = [self.load_annotations(image_index) for image_index in group]
+    
+        return annotations_group
     
     def image_path(self, image_index):
         """ Returns the image path for image_index.
@@ -222,15 +222,14 @@ class Generator(keras.utils.Sequence):
         # compute network inputs
         inputs = self.compute_inputs(image_group)
         
-        return inputs
+        targets = np.array(self.load_annotations_group(group))
+        
+        return inputs,targets
 
     def __getitem__(self, index):
         
-        group = self.groups[index]
-        
-        targets = np.array([self.image_data[self.image_names[idx]]['attrs'] for idx in group])
-        
-        inputs = self.compute_input_output(group)
+        group = self.groups[index]        
+        inputs,targets = self.compute_input_output(group)
         
         return inputs, targets
  
