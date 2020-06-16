@@ -28,9 +28,9 @@ def _read_annotations(csv_reader):
 def read_image_bgr(path):
     """ Read an image in BGR format.
     """
-    image = np.ascontiguousarray(Image.open(path).convert('RGB'))
+    image = np.expand_dims(Image.open(path).convert('L'), axis=2)
     
-    return image[:, :, ::-1]
+    return image
 
 class Generator(keras.utils.Sequence):
     
@@ -109,6 +109,14 @@ class Generator(keras.utils.Sequence):
         
         return new_group
     
+    def hist_equalization(self, image_group):
+        """ returns 2D matrix
+        """
+        for idx in range(len(image_group)):
+            image_group[idx] = cv2.equalizeHist(image_group[idx]) # returns 2D image
+            
+        return image_group
+    
     def on_epoch_end(self):
         random.shuffle(self.groups)
                   
@@ -116,10 +124,10 @@ class Generator(keras.utils.Sequence):
         return len(self.groups)
     
     def resize_image(self, img, min_side=512, max_side=800):
-        """ resize images 
+        """ 'img' is 2D matrix from hist_equalization 
         """
         
-        (rows, cols, _) = img.shape
+        (rows, cols) = img.shape
         smallest_side = min(rows, cols)
         scale = min_side / smallest_side
         largest_side = max(rows, cols)
@@ -127,8 +135,7 @@ class Generator(keras.utils.Sequence):
             scale = max_side / largest_side
 
         img = cv2.resize(img, None, fx=scale, fy=scale)
-        
-        return img
+        return np.expand_dims(img, axis=2)   # covert to 3D tensor
     
     def preprocess_group_entry(self, image):
         """ Preprocess image and its annotations.
@@ -207,6 +214,9 @@ class Generator(keras.utils.Sequence):
         # extract lung regions  
         image_group = self.extract_lungs(image_group)
 
+        # perform histogram equalization 
+        image_group = self.hist_equalization(image_group)
+        
         # perform preprocessing steps
         image_group = self.preprocess_group(image_group)
 

@@ -58,7 +58,7 @@ def generate_convolutional_block(inp, filters, length=2, pool=True, stride=1):
     return output
 
 def generate_network(size=512, width=1):
-    inp = Input(shape = (None,None,3), name='input')
+    inp = Input(shape = (None,None,1), name='input')
 
     output = generate_convolutional_block(inp, filters=16*width, stride=2)
 

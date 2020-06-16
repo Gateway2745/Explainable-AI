@@ -9,11 +9,11 @@ lungs-finder==1.0.0
 train from scratch
 ```python
 1. download cheXpert dataset to project directory
-2. python --csv ./CheXpert-v1.0-small/train.csv --tensorboard-dir ./logs --checkpoint-dir ./snapshots
+2. python train.py --csv ./CheXpert-v1.0-small/train.csv --tensorboard-dir ./logs --checkpoint-dir ./snapshots
 ``` 
 resume from checkpoint after loading weights
 ```python
-python --csv ./CheXpert-v1.0-small/train.csv --tensorboard-dir ./logs --checkpoint-dir ./checkpoints --load-weights ./checkpoints/model_3.hd5
+python train.py --csv ./CheXpert-v1.0-small/train.csv --tensorboard-dir ./logs --checkpoint-dir ./checkpoints --load-weights ./checkpoints/model_3.hd5
 ```
 
 ###  Classification architecture 
