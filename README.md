@@ -1,4 +1,4 @@
-# Explaining Deep Learning algorithms used for classification of CXR images
+# Explainable and Interpretable Deep Learning algorithms for classification of CXR images
 
 ### Requirements
 Tensorflow==1.15<br/>
